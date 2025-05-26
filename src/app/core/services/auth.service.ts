@@ -1,6 +1,15 @@
 // Importações necessárias do Angular e Firebase
 import { Injectable, inject } from '@angular/core';
-import { Auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, user, onAuthStateChanged, User } from '@angular/fire/auth';
+import {
+  Auth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  user,
+  onAuthStateChanged,
+  User,
+} from '@angular/fire/auth';
 import { Firestore, doc, setDoc, getDoc } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject } from 'rxjs';
@@ -16,7 +25,7 @@ export interface UserProfile {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
   // Injeção dos serviços do Firebase Auth, Firestore e Angular Router
@@ -34,18 +43,35 @@ export class AuthService {
   userProfile$ = this.userProfileSubject.asObservable();
 
   constructor() {
-    // Monitora o estado de autenticação do Firebase em tempo real
+    // Mantenha o onAuthStateChanged para outras atualizações
     onAuthStateChanged(this.auth, async (user) => {
-      this.userSubject.next(user); // Atualiza o BehaviorSubject do usuário
+      this.userSubject.next(user);
       if (user) {
-        // Se um usuário estiver logado, busca seu perfil no Firestore
         await this.loadUserProfile(user.uid);
       } else {
-        // Se não houver usuário logado, limpa o perfil
         this.userProfileSubject.next(null);
       }
     });
   }
+
+  // auth.service.ts (substitua a função initializeAuthState por esta nova)
+initAuth(): Promise<void> {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(this.auth, async (user) => {
+      this.userSubject.next(user);
+
+      if (user) {
+        await this.loadUserProfile(user.uid);
+      } else {
+        this.userProfileSubject.next(null);
+      }
+
+      unsubscribe(); // Garante que só roda uma vez
+      resolve(); // Libera o APP_INITIALIZER
+    });
+  });
+}
+
 
   // Função para carregar o perfil do usuário do Firestore
   async loadUserProfile(uid: string): Promise<void> {
@@ -71,10 +97,16 @@ export class AuthService {
     try {
       // Validação básica do domínio (permitindo admin@admin.com)
       if (!email.endsWith('@tahto.com.br') && email !== 'admin@admin.com') {
-        throw new Error('Email inválido. Utilize seu email corporativo @tahto.com.br.');
+        throw new Error(
+          'Email inválido. Utilize seu email corporativo @tahto.com.br.'
+        );
       }
 
-      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        this.auth,
+        email,
+        password
+      );
       // Após login bem-sucedido, o onAuthStateChanged cuidará de carregar o perfil e redirecionar
       // Mas podemos forçar o carregamento do perfil aqui se necessário
       await this.loadUserProfile(userCredential.user.uid);
@@ -83,7 +115,9 @@ export class AuthService {
       // Redirecionamento baseado na role
       if (userProfile?.status !== 'aprovado') {
         await this.logout(); // Desloga se não estiver aprovado
-        throw new Error('Seu cadastro ainda está pendente de aprovação ou foi recusado.');
+        throw new Error(
+          'Seu cadastro ainda está pendente de aprovação ou foi recusado.'
+        );
       }
 
       if (userProfile?.role === 'admin') {
@@ -103,11 +137,18 @@ export class AuthService {
   }
 
   // Função de Cadastro
-  async register(th: string, nome: string, email: string, password: string): Promise<void> {
+  async register(
+    th: string,
+    nome: string,
+    email: string,
+    password: string
+  ): Promise<void> {
     try {
       // Validação do domínio do email
       if (!email.endsWith('@tahto.com.br')) {
-        throw new Error('Email inválido. Utilize um email corporativo @tahto.com.br.');
+        throw new Error(
+          'Email inválido. Utilize um email corporativo @tahto.com.br.'
+        );
       }
       // Validação de TH único (simples verificação se já existe)
       const thDocRef = doc(this.firestore, `users_th/${th}`);
@@ -117,7 +158,11 @@ export class AuthService {
       }
 
       // Cria o usuário no Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        this.auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
       // Cria o perfil do usuário no Firestore
@@ -126,9 +171,8 @@ export class AuthService {
         nome: nome,
         email: email,
         role: 'agente', // Novos cadastros são sempre agentes
-        status: 'pendente' // Status inicial pendente
-        ,
-        id: undefined
+        status: 'pendente', // Status inicial pendente
+        id: undefined,
       };
       const userDocRef = doc(this.firestore, `users/${user.uid}`);
       await setDoc(userDocRef, userProfile);
@@ -138,7 +182,6 @@ export class AuthService {
 
       // Desloga o usuário após o cadastro para aguardar aprovação
       await this.logout();
-
     } catch (error) {
       console.error('Erro no cadastro:', error);
       // Propaga o erro para ser tratado no componente
@@ -164,7 +207,9 @@ export class AuthService {
     try {
       // Validação do domínio do email
       if (!email.endsWith('@tahto.com.br') && email !== 'admin@admin.com') {
-        throw new Error('Email inválido. Utilize seu email corporativo @tahto.com.br.');
+        throw new Error(
+          'Email inválido. Utilize seu email corporativo @tahto.com.br.'
+        );
       }
       await sendPasswordResetEmail(this.auth, email);
     } catch (error) {
@@ -175,8 +220,8 @@ export class AuthService {
 
   // Getter para verificar se o usuário está autenticado
   get isLoggedIn(): Observable<boolean> {
-    return new Observable(subscriber => {
-      onAuthStateChanged(this.auth, user => {
+    return new Observable((subscriber) => {
+      onAuthStateChanged(this.auth, (user) => {
         subscriber.next(!!user);
       });
     });
@@ -192,4 +237,3 @@ export class AuthService {
     return this.userProfile$;
   }
 }
-
