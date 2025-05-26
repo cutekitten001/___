@@ -15,6 +15,17 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
     loadComponent: () => import("./admin/pages/dashboard/dashboard.component").then(m => m.DashboardComponent)
   },
+
+  {
+  path: 'admin/agents',
+  canActivate: [authGuard, adminGuard],
+  loadComponent: () => import('./admin/components/agent-list/agent-list.component').then(m => m.AgentListComponent)
+},
+  {
+    path: 'admin/sales',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./admin/components/sales-list/sales-list.component').then(m => m.SalesListComponent)
+  },
   {
     path: "agente/dashboard",
     canActivate: [authGuard, agentGuard],

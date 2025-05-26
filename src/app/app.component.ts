@@ -1,20 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
+import { CommonModule } from '@angular/common';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { take } from 'rxjs';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  standalone: true,
+  imports: [CommonModule, RouterOutlet, MatProgressSpinnerModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit {
-  title = 'tlv-bov';
+  isLoading = true;
 
   constructor(private authService: AuthService) {}
 
   ngOnInit() {
-    // Força a verificação do estado de autenticação ao iniciar o app
-    this.authService.initAuth();
+    this.authService.getCurrentUserProfile().pipe(take(1)).subscribe(() => {
+      this.isLoading = false;
+    });
   }
 }
